@@ -15,7 +15,7 @@ class NamingInterface(ABC):
 class BaseNaming(NamingInterface):
     next: NamingInterface = None
     def __init__(self, substring: list = []) -> None:
-        self.substring: list = substring
+        self.substring: list[str] = substring
 
     def set_next(self, next: NamingInterface) -> None:
         self.next = next
@@ -32,7 +32,7 @@ class RemoveExtension(BaseNaming):
         if self.next:
             return self.next.handle(return_name)
         elif return_name:
-            return return_name
+            return return_name.strip()
         else:
             return None
 
@@ -44,14 +44,20 @@ class CompatibleFormat(BaseNaming):
         splitted = name.split('.')
         if splitted[-1].lower() in self.compatible_format:
             return_name = name
-
-        return self.next.handle(return_name) if self.next and return_name else None
+            
+        if self.next and return_name:
+            return self.next.handle(return_name)
+        elif return_name:
+            return return_name
+        else:
+            return None
     
 class RemoveSubstrings(BaseNaming):
     def handle(self, name:str) -> str:
-        return_name = [name.replace(rem, '') 
-                for rem in self.substring 
-                if self.substring and rem in name]
+        return_name = ''
+        for rem in self.substring:
+            if self.substring and rem.lower() in name.lower():
+                return_name = name.replace(rem.lower(), '')
         return_name = (return_name[0] if return_name else name).strip()
         return self.next.handle(return_name) if self.next else return_name
 
@@ -59,12 +65,22 @@ class BeginsNumber(BaseNaming):
     def handle(self, name:str) -> str:
         return_name = ''
         for i in range(len(name)):
-            if not name[i].isdigit() and name.isdigit():
+            if not name[i].isdigit() and not name.isdigit():
                 return_name = name[i:].strip()
                 break
             else:
                 return_name = name
-            
+        return_name = return_name.strip()
+        return self.next.handle(return_name) if self.next else return_name
+    
+class RemoveSpaceBeforeExtension(BaseNaming):
+    def handle(self, name:str) -> str:
+        return_name = ''
+        splitted = name.split('.')
+        if len(splitted) > 1:
+            return_name = '.'.join(splitted[:-1]).strip() + '.' + splitted[-1]
+        else:
+            return_name = name
         return self.next.handle(return_name) if self.next else return_name
     
 class RemoveMultiplesSpaces(BaseNaming):
@@ -98,7 +114,6 @@ class RemoveBetweenParenthesis(BaseNaming):
             recursive = False
             #check if there is another open parenthesis and go recursive
             recursive = [True for i in range(len(symbols)) if return_name.find(symbols[i][0]) != -1 and return_name.find(symbols[i][1]) != -1]
-
             return self._find_parenthesis(return_name, symbols) if recursive else return_name
     
 
@@ -107,13 +122,14 @@ class RemoveSymbols(BaseNaming):
         return_name = ''
         if bool(re.search(r'[^\w\s]', name)):
             return_name = re.sub(r'(?<!\w)(?!\s)[^\w\s]+(?<!\s)(?!\w)', '', name).strip()
+            return_name = re.sub(r'^[^a-zA-Z0-9\'\s]+|[^a-zA-Z0-9\'\s]+$', '', name).strip()
         else:
             return_name = name
         return_name = return_name.strip()
         return self.next.handle(return_name) if self.next else return_name
     
-# to_remove: list,
-def chain_naming_run(name:str, chain: list, substring: list = []) -> str:
+
+def run_chain(name:str, chain: list, substring: list = []) -> str:
     list_chain = []
     for i, ch in enumerate(chain):
         ch_obj = ch(substring)

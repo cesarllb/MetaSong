@@ -1,15 +1,13 @@
-# import musicbrainzngs as music
+import os
 import music_tag
 
 class SongTag:
     TITLE, ARTIST, ALBUM = 1, 2, 3
 
-    def __init__(self, path, filetype = {'mp3', 'm4a', 'flac', 'wav', 'aac', 'ogg'}):
+    def __init__(self, path):
         self.path = path
         self.name = path.split('/')[-1]
-        # music_tag.register_filetype_extensions(filetype)
         self.song_tag = music_tag.load_file(self.path)
-
     
     def set_tag(self, type: str | int, value: str, save: bool = False) -> None:
         if type == SongTag.TITLE:
@@ -32,7 +30,7 @@ class AlbumTag:
         self.path = path
         self.album_name = path.split('/')[-1]
         self.artist_name = path.split('/')[-2]
-        self.songs_path = songs_path
+        self.songs_path = [s for s in songs_path if os.path.isfile(s)]
         self.songs_tag = self._get_album_song_tag_list()
 
     def _get_album_song_tag_list(self) -> list[SongTag]:
@@ -73,25 +71,32 @@ class ArtistTag:
     def __init__(self, name: str, album_song_dict_path: dict) -> None:
         self.name = name
         self.album_song_dict_path = album_song_dict_path
+        self.albums_tag = self._get_albums_tag()
+
+    def _get_albums_tag(self) -> list[AlbumTag]:
+        list_albums_tag = []
+        for album_path in self.album_song_dict_path:
+            if os.path.isdir(album_path):
+                list_albums_tag.append(AlbumTag(album_path, self.album_song_dict_path[album_path]))
+        return list_albums_tag
     
     def apply_tags_by_dict(self):
-        for album_path in self.album_song_dict_path:
-            album_tag_obj = AlbumTag(album_path, self.album_song_dict_path[album_path])
+        for album in self.albums_tag:
             #Set tags to all song
-            self.set_tags_to_songs(SongTag.ALBUM, album_tag_obj)
-            self.set_tags_to_songs(SongTag.ARTIST, album_tag_obj)
-            self.set_tags_to_songs(SongTag.TITLE, album_tag_obj)
+            self.set_tags_to_songs(SongTag.ALBUM, album)
+            self.set_tags_to_songs(SongTag.ARTIST, album)
+            self.set_tags_to_songs(SongTag.TITLE, album)
 
-    def set_tags_to_songs(self, type: int, album_tag_obj: AlbumTag):
-        album_len = len(self.album_song_dict_path[album_tag_obj.path])
+    def set_tags_to_songs(self, type: int, album_tag: AlbumTag):
+        album_len = len(album_tag.songs_tag)
         if type in (1, 2, 3):
             if type == SongTag.ALBUM:
-                values = [album_tag_obj.album_name] * album_len
+                values = [album_tag.album_name] * album_len
             elif type == SongTag.ARTIST:
-                values = [album_tag_obj.artist_name] * album_len
+                values = [album_tag.artist_name] * album_len
             elif type == SongTag.TITLE:
-                values = [album_tag_obj.songs_tag[i].name for i in range(album_len)]
+                values = [album_tag.songs_tag[i].name for i in range(album_len)]
             
-            album_tag_obj.set_songs_tag_by_type(type, values)
-            album_tag_obj.save()
+            album_tag.set_songs_tag_by_type(type, values)
+            album_tag.save()
 
