@@ -57,7 +57,11 @@ class RemoveSubstrings(BaseNaming):
         return_name = ''
         for rem in self.substring:
             if self.substring and rem.lower() in name.lower():
-                return_name = name.replace(rem.lower(), '')
+                aux = name.replace(rem.lower(), '')
+                return_name = aux
+            elif self.substring and rem in name:
+                aux = name.replace(rem, '')
+                return_name = aux
         return_name = (return_name[0] if return_name else name).strip()
         return self.next.handle(return_name) if self.next else return_name
 
@@ -118,17 +122,24 @@ class RemoveBetweenParenthesis(BaseNaming):
     
 
 class RemoveSymbols(BaseNaming):
-    def handle(self, name:str) -> str:
-        return_name = ''
-        if bool(re.search(r'[^\w\s]', name)):
-            return_name = re.sub(r'(?<!\w)(?!\s)[^\w\s]+(?<!\s)(?!\w)', '', name).strip()
-            return_name = re.sub(r'^[^a-zA-Z0-9\'\s]+|[^a-zA-Z0-9\'\s]+$', '', name).strip()
+    def handle(self, name: str) -> str:
+        split = name.split('.')
+        if len(split) > 1:
+            no_ext = ''
+            for s in split[:-1]:
+                no_ext += s       
+            ext = split[-1]
+            aux = re.sub(r"(?<![a-zA-Z'])'|'(?![a-zA-Z])|[^a-zA-Z0-9']+", " ", no_ext)
+            return_name = aux.strip() + '.' + ext
         else:
-            return_name = name
-        return_name = return_name.strip()
+            aux = re.sub(r"(?<![a-zA-Z'])'|'(?![a-zA-Z])|[^a-zA-Z0-9']+", " ", name)
+            return_name = aux.strip()
         return self.next.handle(return_name) if self.next else return_name
-    
 
+r = RemoveSymbols()
+print(r.handle('Greatest Hits'))
+    
+    
 def run_chain(name:str, chain: list, substring: list = []) -> str:
     list_chain = []
     for i, ch in enumerate(chain):
