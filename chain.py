@@ -135,9 +135,6 @@ class RemoveSymbols(BaseNaming):
             aux = re.sub(r"(?<![a-zA-Z'])'|'(?![a-zA-Z])|[^a-zA-Z0-9']+", " ", name)
             return_name = aux.strip()
         return self.next.handle(return_name) if self.next else return_name
-
-r = RemoveSymbols()
-print(r.handle('Greatest Hits'))
     
     
 def run_chain(name:str, chain: list, substring: list = []) -> str:

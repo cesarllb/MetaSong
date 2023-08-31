@@ -12,17 +12,19 @@ class MusicFolder:
         self.artist_names = list([ a_editor.name for a_editor in self.artist_editors ])
         self.unsolved_songs_path = get_unsolved()
         
-    async def apply_all_tags(self, api: bool = False):
-        await apply_tags(names = self.artist_names, api= api)
+    async def apply_all_tags(self, use_api: bool = False):
+        await apply_tags(names = self.artist_names, api= use_api)
             
 
 if __name__ == '__main__':
     a = MusicFolder('/run/media/cesarlinares/08050A6608050A66/Música/test')
-    asyncio.run( a.apply_all_tags(api = True) )
+    asyncio.run( a.apply_all_tags(use_api = True) )
     
     for a in a.artist_editors:
+        pprint('Old: ')
+        pprint(a.processor.album_song_dict, width=160)
+        pprint('New: ')
         pprint(a.processor.new_album_song_dict, width=160)
-        # pprint('Old: ')
         # pprint(a.processor.albums)
         # pprint('New: ')
         # pprint(a.processor.new_albums)
