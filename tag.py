@@ -95,7 +95,7 @@ class ArtistTag:
         return True if list(album_dict)[0] == 'NO ALBUM' else False
     
     def get_album_tag(self, album_name: str) -> AlbumTag:
-        return list([ a.album_name for a in self.albums_tag if a.album_name == album_name])[0]
+        return list([ a for a in self.albums_tag if a.album_name == album_name])[0]
 
     def _get_albums_tag(self) -> list[AlbumTag]:
         list_albums_tag = []
@@ -124,12 +124,13 @@ class ArtistTag:
                 
             album_tag.save()
             
-    async def update_all_by_api(self): 
+    async def update_all_by_api(self):
         if self.NO_ALBUM:
-            asyncio.gather( self.update_albums_name(), self.update_songs_name(),
-                            self.update_unknown_album() )
+            asyncio.gather( self.update_albums_name(), self.update_songs_name() )
+            self.update_unknown_album()
         else:
             asyncio.gather( self.update_albums_name(), self.update_songs_name() )
+        await self.update_artist_name()
 
     async def update_unknown_album(self):
         if self.NO_ALBUM:
@@ -143,11 +144,11 @@ class ArtistTag:
         album_song_dict: dict = get_serialized_dict(db.DB_NEW, self.name)
         new_album_song_dict: dict = {}
         if not self.NO_ALBUM:
-            tasks = []
+            results = []
             for a in album_song_dict:
-                task = asyncio.create_task(search_album(self.name, a))
-                tasks.append(task)
-            results = await asyncio.gather(*tasks)
+                result = await search_album(self.name, a)
+                results.append(result)
+
             for i, a in enumerate(album_song_dict):
                 api_album = results[i]
                 album_tag = self.get_album_tag(a)
@@ -163,11 +164,10 @@ class ArtistTag:
         album_song_dict: dict = get_serialized_dict(db.DB_NEW, self.name)
         new_album_song_dict: dict = {}
         if not self.NO_ALBUM:
-            tasks = []
+            results = []
             for a in album_song_dict:
-                task = asyncio.create_task(search_songs(self.name, a))
-                tasks.append(task)
-            results: list[list] = await asyncio.gather(*tasks) #all songs for each album
+                results = await search_songs(self.name, a)
+                results.append(results)
 
             for i, a in enumerate(album_song_dict):
                 api_songs =  results[i] #songs searched in api for this album

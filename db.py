@@ -39,8 +39,9 @@ def update_db(old_name: str, new_name: str):
     
     old_name_path = os.path.join(os.path.curdir, 'db', old_name)
     new_name_path = os.path.join(os.path.curdir, 'db', new_name)
-    if os.path.exists(old_name_path) and old_name != new_name:
-        os.rename(old_name_path, new_name_path)
+    if os.path.exists(old_name_path):
+        if old_name != new_name:
+            os.rename(old_name_path, new_name_path)
     else:
         raise FileNotFoundError()
     
