@@ -11,8 +11,9 @@ class ArtistFolderProcessor:
     NO_ALBUM: str = 'NO ALBUM'
     
     def __init__(self, path:str, load_db: bool = True):
-        self.path = path
+        self.root = path
         self.name = path.split('/')[-1]
+        self.new_name = run_chain(self.name, chain = (RemoveBetweenParenthesis, RemoveSymbols, RemoveMultiplesSpaces))
 
         self.album_song_dict = self._get_album_song_dict(load_db)
         self.albums = list(self.album_song_dict.keys())
@@ -31,8 +32,8 @@ class ArtistFolderProcessor:
             return album_song_dict
         
         root_files = []
-        for elem in os.listdir(self.path):
-            elem_path = os.path.join(self.path, elem)
+        for elem in os.listdir(self.root):
+            elem_path = os.path.join(self.root, elem)
             if os.path.isdir(elem_path):
                 album_song_dict[elem] = list([f for f in os.listdir(elem_path) if os.path.isfile(os.path.join(elem_path, f)) 
                                               and run_chain(f, chain=[CompatibleFormat])])
@@ -42,11 +43,10 @@ class ArtistFolderProcessor:
         if root_files and not album_song_dict:
             album_song_dict[self.NO_ALBUM] = root_files
             
-        album_song_dict = self.remove_duplicates(album_song_dict)
         save_serialized_dict(db.DB_OLD, self.name, album_song_dict)
         return album_song_dict
     
-    def _get_new_album_song_dict(self, load_db: bool = False):
+    def _get_new_album_song_dict(self, load_db: bool = True):
         '''If it have subfolders/albums it not analyze files in the root/artist path'''
         new_album_song_dict = get_serialized_dict(db.DB_NEW, self.name)
         if new_album_song_dict and load_db:
@@ -62,7 +62,7 @@ class ArtistFolderProcessor:
                 list_songs.append(new_file_name)
             new_album_song_dict[new_album_name] = list_songs
             
-        new_album_song_dict = self.remove_duplicates(new_album_song_dict)
+        # new_album_song_dict = self.remove_duplicates(new_album_song_dict)
         save_serialized_dict(db.DB_NEW, self.name, new_album_song_dict)
         return new_album_song_dict
 
@@ -85,7 +85,7 @@ class ArtistFolderEditor:
     def __init__(self, path: str) -> None:
         self.processor = ArtistFolderProcessor(path)
         self.name = self.processor.name
-        self.root = self.processor.path
+        self.root = self.processor.root
         self.NO_ALBUM = False
         self.albums_path: list = self._get_album_path()
         self.songs_path: list = self._get_songs_path()
@@ -170,9 +170,10 @@ class ArtistFolderEditor:
         self.new_album_song_dict_path = new_album_song_dict_path
         save_serialized_dict(db.DB_PATH, self.name, new_album_song_dict_path)
         self.unsolved_song_path = self._get_unsolved_song_path()
-        
+        os.rename(self.root, os.path.join( os.path.dirname(self.root) , self.processor.new_name))# Rename the artist dir name
         log_multiple_data({'\n old paths: \n': self.album_song_dict_path, '\n new paths: \n': new_album_song_dict_path,
                            '\n unsolved path: \n': self.unsolved_song_path})
+
 
         
         

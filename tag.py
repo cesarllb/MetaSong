@@ -90,12 +90,13 @@ class ArtistTag:
         self.NO_ALBUM = self._is_NO_ALBUM()
         self.albums_tag = self._get_albums_tag()
         
-    def _is_NO_ALBUM(self):
+    def _is_NO_ALBUM(self) -> bool:
         album_dict = get_serialized_dict(db.DB_NEW, self.name)
         return True if list(album_dict)[0] == 'NO ALBUM' else False
     
     def get_album_tag(self, album_name: str) -> AlbumTag:
-        return list([ a for a in self.albums_tag if a.album_name == album_name])[0]
+        tag = list([ a for a in self.albums_tag if a.album_name == album_name])
+        return tag[0] if tag else None
 
     def _get_albums_tag(self) -> list[AlbumTag]:
         list_albums_tag = []
@@ -127,7 +128,7 @@ class ArtistTag:
     async def update_all_by_api(self):
         if self.NO_ALBUM:
             asyncio.gather( self.update_albums_name(), self.update_songs_name() )
-            self.update_unknown_album()
+            await self.update_unknown_album()
         else:
             asyncio.gather( self.update_albums_name(), self.update_songs_name() )
         await self.update_artist_name()
@@ -140,45 +141,47 @@ class ArtistTag:
                 album_tag.artist_name = api_artist
                 album_tag.set_songs_tag_by_type(SongTag.ARTIST, save= True)
             
-    async def update_albums_name(self):
+    async def update_albums_name(self, threshold: int = 6):
         album_song_dict: dict = get_serialized_dict(db.DB_NEW, self.name)
         new_album_song_dict: dict = {}
         if not self.NO_ALBUM:
-            results = []
-            for a in album_song_dict:
-                result = await search_album(self.name, a)
-                results.append(result)
-
-            for i, a in enumerate(album_song_dict):
+            results = [None] * len(album_song_dict)
+            for i, album in enumerate(album_song_dict): #get info from API
+                result = await search_album(self.name, album)
+                results[i] = result
+            for i, album in enumerate(album_song_dict):
                 api_album = results[i]
-                album_tag = self.get_album_tag(a)
-                for s in album_song_dict[a]:
-                    album_tag.set_song_tag_by_name(SongTag.ALBUM, song_name = s, value = api_album, save = True)
-                    log_data(album_tag.album_name + ' -> ' + api_album)
-                new_album_song_dict[api_album] = album_song_dict[a]
+                if api_album:
+                    album_tag = self.get_album_tag(album)
+                    for s in album_song_dict[album]:
+                        if album_tag and distance(s, api_album) < threshold:
+                            album_tag.set_song_tag_by_name(SongTag.ALBUM, song_name = s, value = api_album, save = True)
+                            log_data(album_tag.album_name + ' -> ' + api_album)
+                    if album_tag:
+                        new_album_song_dict[api_album] = album_song_dict[album]
             if len(list(itertools.chain(*album_song_dict.values()))) == \
                             len(list(itertools.chain(*new_album_song_dict.values()))):
                 update_serialized_dict(db.DB_NEW, self.name, new_album_song_dict)
                 
-    async def update_songs_name(self):
+    async def update_songs_name(self, threshold: int = 6):
         album_song_dict: dict = get_serialized_dict(db.DB_NEW, self.name)
         new_album_song_dict: dict = {}
         if not self.NO_ALBUM:
-            results = []
-            for a in album_song_dict:
-                results = await search_songs(self.name, a)
-                results.append(results)
-
+            results = [None] * len(album_song_dict.keys())
+            for i, album in enumerate(album_song_dict): #get info from API
+                results_api = await search_songs(self.name, album)
+                results[i] = results_api
             for i, a in enumerate(album_song_dict):
                 api_songs =  results[i] #songs searched in api for this album
                 api_songs = self._best_api_songs(api_songs, album_song_dict[a]) #the most similar api_song for each old song in this album
                 album_tag = self.get_album_tag(a)
-                list_new_songs = []
+                count = 0
                 for s, api_s in zip(album_song_dict[a], api_songs):
-                    album_tag.set_song_tag_by_name(SongTag.TITLE, song_name = s, value = api_s, save = True)
-                    list_new_songs.append(api_s)
-                    log_data(s + ' -> ' + api_s)
-                new_album_song_dict[a] = api_songs
+                    if api_s and album_tag and distance(s, api_s) < threshold:
+                        album_tag.set_song_tag_by_name(SongTag.TITLE, song_name = s, value = api_s, save = True)
+                        count += 1; log_data(s + ' -> ' + api_s)
+                if len(api_songs) == count:
+                    new_album_song_dict[a] = api_songs
                     
             if len(list(itertools.chain(*album_song_dict.values()))) == \
                             len(list(itertools.chain(*new_album_song_dict.values()))):
@@ -192,14 +195,15 @@ class ArtistTag:
                 dist = distance(song, api)
                 if dist < min:
                     min = dist; best_distance = dist; best_api_for_song = api
-            
             if best_distance <= threshold:
                 new_api_songs.append(best_api_for_song)
+            else:
+                new_api_songs.append(None)
         return new_api_songs
                 
     async def update_artist_name(self):  
         api_artist = await search_artist(artist=self.name) #find in the api
-        if api_artist != self.name:
+        if api_artist != self.name and api_artist:
             update_db(self.name, api_artist)
             self.name =  api_artist
             for tag in self.albums_tag:
