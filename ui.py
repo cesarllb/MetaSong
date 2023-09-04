@@ -1,5 +1,5 @@
 import streamlit as st
-from folder_analyzer import MusicFolder
+from app import MusicFolder
 
 def initialize_music_folder(path: str) -> MusicFolder:
     st.session_state.mf = MusicFolder(path)
@@ -19,8 +19,7 @@ if 'mf' in st.session_state:
     for artist_editor in mf.artist_editors:
         processor = artist_editor.processor
         col1.subheader(artist_editor.processor.name); col2.subheader(artist_editor.processor.name)
-        for old_album, new_album in zip(processor.album_song_dict, processor.new_album_song_dict_with_extensions):
+        for old_album, new_album in zip(processor.album_song_dict, processor.new_album_song_dict):
             col1.write(f'*{old_album}*'); col2.write(f'*{new_album}*')
-            for old_song, new_song in zip(processor.album_song_dict[old_album], processor.new_album_song_dict_with_extensions[new_album]):
-                col1.write(' ', old_song); col2.write(' ', new_song)
-                print(old_song, new_song)
+            for old_song, new_song in zip(processor.album_song_dict[old_album], processor.new_album_song_dict[new_album]):
+                col1.write(old_song); col2.write(new_song)

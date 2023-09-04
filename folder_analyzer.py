@@ -59,7 +59,7 @@ class ArtistFolderProcessor:
             for song in self.album_song_dict[album]:
                 new_file_name = run_chain(song, chain= [CompatibleFormat, RemoveBetweenParenthesis, 
                           BeginsNumber, RemoveSubstrings, RemoveSymbols, RemoveMultiplesSpaces, RemoveSpaceBeforeExtension])
-                list_songs.append(new_file_name)
+                list_songs.append(new_file_name if new_file_name else song)
             new_album_song_dict[new_album_name] = list_songs
             
         # new_album_song_dict = self.remove_duplicates(new_album_song_dict)
