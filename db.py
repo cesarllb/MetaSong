@@ -1,7 +1,7 @@
 import os
 import pickle
 
-DB_OLD, DB_NEW, DB_PATH = 'old', 'new', 'path'
+DB_OLD, DB_NEW, DB_PATH = 'old', 'new', 'path',
     
 def get_serialized_dict(type: str, name: str):
     '''Type hint: 

@@ -7,7 +7,7 @@ from Levenshtein import distance
 from logger import log_multiple_data, log_data
 from db import get_serialized_dict, update_serialized_dict, update_db
 from api import search_song, search_songs, search_artist, search_album, search_album_by_song
-              
+
 class SongTag:
     TITLE, ARTIST, ALBUM = 1, 2, 3
 
@@ -27,7 +27,6 @@ class SongTag:
             self.song_tag[type] = value
         if save:
             self.song_tag.save()
-
     def save(self):
         self.song_tag.save()
 
@@ -48,8 +47,8 @@ class AlbumTag:
         return list_of_songs_tag
 
     def set_songs_tag_by_type(self, type: int, 
-                              values: list[str] = None, 
-                              save: bool = False) -> bool:
+                            values: list[str] = None, 
+                            save: bool = False) -> bool:
 
         for i, song_tag in enumerate(self.songs_tag):
             if type == 1 and len(values) == len(self.songs_tag):
@@ -62,26 +61,24 @@ class AlbumTag:
                 song_tag.set_tag(type, self.album_name)
             if save:
                 song_tag.save()
-            return True
-            
-        return False
+        return True
+        
         
     def save(self):
         for song_tag in self.songs_tag:
             song_tag.save()
         
     def set_song_tag_by_name(self, type: int, 
-                             song_name: str, 
-                             value: str, 
-                             save: bool = False) -> None:
+                            song_name: str, 
+                            value: str, 
+                            save: bool = False) -> None:
         
         for song_tag in self.songs_tag:
             if song_tag.name in song_name or song_name in song_tag.name:
                 song_tag.set_tag(type, value)
                 if save:
                     song_tag.save()
-                return True
-        return False
+        return True
 
 class ArtistTag:
     def __init__(self, name: str) -> None:
@@ -89,7 +86,7 @@ class ArtistTag:
         self.album_song_dict_path = get_serialized_dict(db.DB_PATH, self.name)
         self.NO_ALBUM = self._is_NO_ALBUM()
         self.albums_tag = self._get_albums_tag()
-        
+
     def _is_NO_ALBUM(self) -> bool:
         album_dict = get_serialized_dict(db.DB_NEW, self.name)
         return True if list(album_dict)[0] == 'NO ALBUM' else False
