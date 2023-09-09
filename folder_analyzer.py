@@ -189,23 +189,23 @@ class ArtistFolderEditor:
         self.unsolved_song_path = self._get_unsolved_song_path()
         # log_multiple_data({new_album_song_dict_path, '\n unsolved path: \n' + self.unsolved_song_path})
 
-artists_editor: list[ArtistFolderEditor] = []
 
-def apply_changes_to_files(path: str) -> list[ArtistFolderEditor]:
+def initialize_editors(path: str) -> list[ArtistFolderEditor]:
     list_editor = []
     try:
         for dir in os.listdir(path):
             if os.path.isdir(os.path.join(path, dir)):
                 editor = ArtistFolderEditor(os.path.join(path, dir))
                 list_editor.append(editor)
-                editor.apply()       
     except Exception as e:
         print(e.args)
-    
-    global artists_editor; artists_editor = list_editor
     return list_editor
 
-def get_unsolved():
-    return [u for i in range(len(artists_editor)) \
-            for u in artists_editor[i].unsolved_song_path] \
-            if artists_editor else None
+def apply_changes_to_files(editors: list[ArtistFolderEditor]) -> None:
+    for e in editors:
+        e.apply()
+
+def get_unsolved(editors: list[ArtistFolderEditor]):
+    return [u for i in range(len(editors)) \
+            for u in editors[i].unsolved_song_path] \
+            if editors else None

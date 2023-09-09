@@ -3,7 +3,7 @@ import shutil
 import asyncio
 from tag import apply_tags
 from db import get_serialized_dict
-from folder_analyzer import apply_changes_to_files, get_unsolved, ArtistFolderEditor
+from folder_analyzer import initialize_editors, apply_changes_to_files, get_unsolved, ArtistFolderEditor
 
 root = '/run/media/cesarlinares/08050A6608050A66/Música/test'
 
@@ -12,10 +12,15 @@ class MusicFolder:
     def __init__(self, path:str):
         self.path = path
         self.name = path.split('/')[-1]
-        self.artist_editors: list[ArtistFolderEditor] = apply_changes_to_files(path)
+        self.artist_editors: list[ArtistFolderEditor] = initialize_editors(self.path)
         self.artist_names = list([ a_editor.name for a_editor in self.artist_editors ])
-        self.unsolved_songs_path = get_unsolved()
         
+    def apply_to_files(self):
+        apply_changes_to_files(self.artist_editors)
+        
+    def get_unsolved(self):
+        return get_unsolved(self.artist_editors)
+
     async def apply_all_tags(self, use_api: bool = False):
         await apply_tags(names = self.artist_names, api= use_api)
 
@@ -36,7 +41,7 @@ def restart(list_artist = ['Five_finger_death_punch', 'Nickelback', 'Led Zeppeli
 
 
 if __name__ == '__main__':
-    # restart() # si ejecuto con el restart activado, no se crean bien las bases de dato
+    # restart()
     a = MusicFolder(root)
     asyncio.run( a.apply_all_tags(use_api = False) )
 
