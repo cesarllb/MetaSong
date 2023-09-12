@@ -3,10 +3,10 @@ import db
 import asyncio
 import music_tag
 import itertools
+from logger import log_data
 from Levenshtein import distance
-from logger import log_multiple_data, log_data
-from db import get_serialized_dict, update_serialized_dict, update_db
-from api import search_song, search_songs, search_artist, search_album, search_album_by_song
+from api import search_songs, search_artist, search_album
+from code.db import get_serialized_dict, update_serialized_dict, update_db
 
 class SongTag:
     TITLE, ARTIST, ALBUM = 1, 2, 3

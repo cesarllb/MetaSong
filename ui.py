@@ -1,6 +1,9 @@
 import asyncio
 import streamlit as st
 from app import MusicFolder
+import streamlit_scrollable_textbox as stb
+
+st.set_page_config(page_title='Music Metadata Processor', layout="wide")
 
 def initialize_music_folder(path: str) -> MusicFolder:
     st.session_state.mf = MusicFolder(path)
@@ -17,6 +20,15 @@ def apply_tags(use_api: bool):
     else:
         st.write('Introduce el directorio a analizar primero.')
 
+def get_artist_info(dict_info: dict) -> str:
+    long_text = []
+    for album in dict_info:
+        if album != 'NO ALBUM': 
+            long_text.append(f'{album} \n')
+        for song in dict_info[album]:
+            long_text.append(f' - {song} \n')
+    return "".join(long_text)
+
 button_col1, button_col2, button_col3 = st.columns(3)
 path = st.text_input("Introduce el path")
 button_col1.button('Escanear path', on_click=initialize_music_folder, args=(path,))
@@ -31,10 +43,13 @@ if 'mf' in st.session_state:
     col2.header("Propuesta de edición:")
 
     mf = st.session_state.mf
-    for artist_editor in mf.artist_editors:
+    for i, artist_editor in enumerate(mf.artist_editors):
         processor = artist_editor.processor
-        col1.subheader(artist_editor.processor.name); col2.subheader(artist_editor.processor.name)
-        for old_album, new_album in zip(processor.album_song_dict, processor.new_album_song_dict):
-            col1.write(f'*{old_album}*'); col2.write(f'*{new_album}*')
-            for old_song, new_song in zip(processor.album_song_dict[old_album], processor.new_album_song_dict[new_album]):
-                col1.write('  ' + old_song); col2.write('  ' + new_song)
+        with col1:
+            col1.subheader(artist_editor.name)
+            text = get_artist_info(artist_editor.processor.album_song_dict)
+            stb.scrollableTextbox(text, height = 200, key=f"col1_{i}")
+        with col2:
+            col2.subheader(artist_editor.name)
+            text = get_artist_info(artist_editor.processor.new_album_song_dict)
+            stb.scrollableTextbox(text, height = 200, key=f"col2_{i}")

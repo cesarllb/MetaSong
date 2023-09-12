@@ -1,5 +1,4 @@
 import musicbrainzngs
-from pprint import pprint
 from Levenshtein import distance
 
 

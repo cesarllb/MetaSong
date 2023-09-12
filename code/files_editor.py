@@ -1,96 +1,32 @@
 import os
-import db
-from collections import defaultdict
-from logger import log_multiple_data
-from db import get_serialized_dict, save_serialized_dict, update_serialized_dict
-from chain import run_chain, RemoveBetweenParenthesis, RemoveSymbols, BeginsNumber, \
-                                    RemoveSubstrings, CompatibleFormat, RemoveExtension, \
-                                    RemoveMultiplesSpaces, RemoveSpaceBeforeExtension
+from abc import ABC, abstractmethod
+from code.files_processor import ArtistFolderProcessor, IArtistFolderProcessor
+from code.db import save_serialized_dict, update_serialized_dict
+from code.chain import RemoveBetweenParenthesis, RemoveMultiplesSpaces, RemoveSymbols, run_chain
 
-class ArtistFolderProcessor:
-    NO_ALBUM: str = 'NO ALBUM'
+class IArtistFolderEditor(ABC):
     
-    def __init__(self, path:str, load_db: bool = True):
-        self.root = path
-        self.name = path.split('/')[-1]
-        # self.new_name = run_chain(self.name, chain = (RemoveBetweenParenthesis, RemoveSymbols, RemoveMultiplesSpaces))
-
-        self.album_song_dict = self._get_album_song_dict(load_db)
-        self.albums = list(self.album_song_dict.keys())
-        self.songs = list([song for album in self.albums for song in self.album_song_dict[album]])
-        
-        self.new_album_song_dict = self._get_new_album_song_dict(load_db)
-        self.new_albums = list(self.new_album_song_dict.keys())
-        self.new_songs = list([song for album in self.new_albums for song in self.new_album_song_dict[album]])
-        
-        log_multiple_data({'name: ': self.name , 'old: \n': self.album_song_dict, 'new: \n': self.new_album_song_dict})
-        
-
-    def _get_album_song_dict(self, load_db: bool = True):
-        album_song_dict = get_serialized_dict(db.DB_OLD, self.name)
-        if album_song_dict and load_db:
-            return album_song_dict
-        no_album = self.check_no_album(self.root)
-        for elem in os.listdir(self.root):
-            elem_path = os.path.join(self.root, elem)
-            if os.path.isdir(elem_path) and not no_album:
-                album_song_dict[elem] = list([f for f in os.listdir(elem_path) if os.path.isfile(os.path.join(elem_path, f)) 
-                                            and run_chain(f, chain=[CompatibleFormat])])
-            elif os.path.isfile(elem_path) and no_album:
-                album_song_dict[self.NO_ALBUM] = list([f for f in os.listdir(self.root) if os.path.isfile(os.path.join(self.root, f)) 
-                                                        and run_chain(f, chain=[CompatibleFormat])])
-        save_serialized_dict(db.DB_OLD, self.name, album_song_dict)
-        return album_song_dict
+    @abstractmethod
+    def __init__(self, path: str) -> None:
+        ...
     
-    def check_no_album(self, root: str) -> bool:
-        dirs = False; files = False
-        for elem in os.listdir(self.root):
-            elem_path = os.path.join(self.root, elem)
-            if os.path.isdir(elem_path):
-                dirs = True
-            if os.path.isfile(elem_path):
-                files = True
-        return True if not dirs and files else False
-
-    def _get_new_album_song_dict(self, load_db: bool = True):
-        '''If it have subfolders/albums it not analyze files in the root/artist path'''
-        new_album_song_dict = get_serialized_dict(db.DB_NEW, self.name)
-        if new_album_song_dict and load_db:
-            return new_album_song_dict
+    @abstractmethod
+    def apply_artist_name(self, path: str):
+        ...
         
-        for album in self.albums:
-            new_album_name = run_chain(album, chain = (RemoveBetweenParenthesis, RemoveSymbols, BeginsNumber, RemoveMultiplesSpaces)) \
-                            if album != self.NO_ALBUM else self.NO_ALBUM
-            list_songs = []
-            for song in self.album_song_dict[album]:
-                new_file_name = run_chain(song, chain= [CompatibleFormat, RemoveBetweenParenthesis, 
-                            BeginsNumber, RemoveSubstrings, RemoveSymbols, RemoveMultiplesSpaces, RemoveSpaceBeforeExtension])
-                list_songs.append(new_file_name if new_file_name else song)
-            new_album_song_dict[new_album_name] = list_songs
-            
-        # new_album_song_dict = self.remove_duplicates(new_album_song_dict)
-        save_serialized_dict(db.DB_NEW, self.name, new_album_song_dict)
-        return new_album_song_dict
-
-    def remove_duplicates(self, dictionary: dict) -> dict:
-        new_dict = defaultdict(list)
-        unique_keys = set()
-        for key, value in dictionary.items():
-            if key not in unique_keys:
-                unique_keys.add(key)
-                for item in set(value):
-                    new_dict[key].append(item)
-        return dict(new_dict)
-
+    @abstractmethod
     def refresh(self):
-        self.album_song_dict = self._get_album_song_dict(load_db = False)
-        self.new_album_song_dict = self._get_new_album_song_dict(load_db = False)
+        ...
+        
+    @abstractmethod
+    def apply(self) -> dict[ str , list[str]]:
+        ...
 
 class ArtistFolderEditor:
 
-    def __init__(self, path: str) -> None:
+    def __init__(self, path: str):
         self.root = self.apply_artist_name(path)
-        self.processor = ArtistFolderProcessor(self.root)
+        self.processor: IArtistFolderProcessor = ArtistFolderProcessor(self.root)
         self.name = self.processor.name
         self.NO_ALBUM = False
         self.albums_path: list = self._get_album_path()
@@ -187,10 +123,8 @@ class ArtistFolderEditor:
         self.album_song_dict_path = new_album_song_dict_path
             
         self.unsolved_song_path = self._get_unsolved_song_path()
-        # log_multiple_data({new_album_song_dict_path, '\n unsolved path: \n' + self.unsolved_song_path})
-
-
-def initialize_editors(path: str) -> list[ArtistFolderEditor]:
+        
+def initialize_editors(path: str) -> list[IArtistFolderEditor]:
     list_editor = []
     try:
         for dir in os.listdir(path):
@@ -201,11 +135,11 @@ def initialize_editors(path: str) -> list[ArtistFolderEditor]:
         print(e.args)
     return list_editor
 
-def apply_changes_to_files(editors: list[ArtistFolderEditor]) -> None:
+def apply_changes_to_files(editors: list[IArtistFolderEditor]) -> None:
     for e in editors:
         e.apply()
 
-def get_unsolved(editors: list[ArtistFolderEditor]):
+def get_unsolved(editors: list[IArtistFolderEditor]):
     return [u for i in range(len(editors)) \
             for u in editors[i].unsolved_song_path] \
             if editors else None

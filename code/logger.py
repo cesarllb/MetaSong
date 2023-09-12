@@ -1,5 +1,5 @@
-import logging
 import os
+import logging
 
 def log_data(data):
     logger = logging.getLogger(__name__)
@@ -15,7 +15,8 @@ def log_data(data):
 
     logger.addHandler(file_handler)
 
-    logger.info(data)
+    logger.info(data.split('\\n'))
+
     
 def log_multiple_data(*args):
     for data in args:
