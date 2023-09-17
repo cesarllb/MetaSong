@@ -1,8 +1,8 @@
 import os
 import shutil
 import asyncio
-from tag import apply_tags
-from files_editor import initialize_editors, apply_changes_to_files, get_unsolved, ArtistFolderEditor
+from code.tag import apply_tags
+from code.files_editor import initialize_editors, apply_changes_to_files, get_unsolved, ArtistFolderEditor
 
 root = '/run/media/cesarlinares/08050A6608050A66/Música/test'
 
@@ -17,13 +17,20 @@ class MusicFolder:
     def apply_to_files(self):
         apply_changes_to_files(self.artist_editors)
         
+    def add_new_artist_path(self, path: str):
+        self.artist_editors.append(ArtistFolderEditor(path))
+        
+    def add_new_dir_of_artist(self, path: str):
+        editors: list[ArtistFolderEditor] = initialize_editors(path)
+        for e in editors:
+            self.artist_editors.append(e)
+        
     def get_unsolved(self):
         return get_unsolved(self.artist_editors)
 
-    async def apply_all_tags(self, use_api: bool = False):
-        await apply_tags(names = self.artist_names, api= use_api)
-
-
+    async def apply_all_tags(self, use_api: bool = False, covers: bool = False):
+        await apply_tags(names = self.artist_names, api= use_api, covers= covers)
+    
 def restart(list_artist = ['Five_finger_death_punch', 'Nickelback', 'Led Zeppelin - Essentials']):
     if os.path.exists(os.path.join(os.curdir, 'db')):
         shutil.rmtree(os.path.join(os.curdir, 'db'))
@@ -40,18 +47,7 @@ def restart(list_artist = ['Five_finger_death_punch', 'Nickelback', 'Led Zeppeli
 
 
 if __name__ == '__main__':
-    # restart()
+    restart()
     a = MusicFolder(root)
-    asyncio.run( a.apply_all_tags(use_api = False) )
-
-    # pprint(get_serialized_dict(db.DB_OLD, a.artist_names[0]))
-    # pprint(get_serialized_dict(db.DB_NEW, a.artist_names[0]))
-    # for a in a.artist_editors:
-    #     pprint('Old: ')
-    #     pprint(a.processor.album_song_dict, width=160)
-    #     pprint('New: ')
-    #     pprint(a.processor.new_album_song_dict, width=160)
-    #     # pprint(a.processor.albums)
-    #     # pprint('New: ')
-    #     # pprint(a.processor.new_albums)
-    #     # pprint(a.unsolved_song_path, width=160)
+    a.apply_to_files()
+    asyncio.run( a.apply_all_tags( use_api = False, covers= True) )

@@ -1,8 +1,10 @@
 import os
 from abc import ABC, abstractmethod
-from files_processor import ArtistFolderProcessor, IArtistFolderProcessor
-from db import save_serialized_dict, update_serialized_dict, DB_PATH
-from chain import RemoveBetweenParenthesis, RemoveMultiplesSpaces, RemoveSymbols, run_chain
+import shutil
+from code.files_processor import ArtistFolderProcessor, IArtistFolderProcessor
+from code.db import save_serialized_dict, update_serialized_dict, DB_PATH
+from code.chain import RemoveBetweenParenthesis, RemoveMultiplesSpaces, RemoveSymbols, run_chain
+from code.logger import log_data
 
 class IArtistFolderEditor(ABC):
     
@@ -36,10 +38,12 @@ class ArtistFolderEditor:
         self.unsolved_song_path: list = []
 
     def apply_artist_name(self, path: str):
-        print(type(path))
         self.new_name = run_chain(path.split('/')[-1], chain = (RemoveBetweenParenthesis, RemoveSymbols, RemoveMultiplesSpaces))
         new_path = os.path.join( os.path.dirname(path) , self.new_name)
-        os.rename(path, new_path)# Rename the artist dir name
+        try:
+            shutil.move(path, new_path)# Rename the artist dir name
+        except FileExistsError:
+            log_data(f'The directory {new_path} already exist!')
         return new_path
         
     def refresh(self):
@@ -127,13 +131,13 @@ class ArtistFolderEditor:
         
 def initialize_editors(path: str) -> list[IArtistFolderEditor]:
     list_editor = []
-    try:
-        for dir in os.listdir(path):
-            if os.path.isdir(os.path.join(path, dir)):
-                editor = ArtistFolderEditor(os.path.join(path, dir))
-                list_editor.append(editor)
-    except Exception as e:
-        print(e.args)
+    # try:
+    for dir in os.listdir(path):
+        if os.path.isdir(os.path.join(path, dir)):
+            editor = ArtistFolderEditor(os.path.join(path, dir))
+            list_editor.append(editor)
+    # except Exception as e:
+    #     log_data(e.args)
     return list_editor
 
 def apply_changes_to_files(editors: list[IArtistFolderEditor]) -> None:

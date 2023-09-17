@@ -1,9 +1,9 @@
 import os
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from logger import log_multiple_data
-from db import get_serialized_dict, save_serialized_dict, DB_NEW, DB_PATH, DB_OLD
-from chain import run_chain, RemoveBetweenParenthesis, RemoveSymbols, BeginsNumber, \
+from code.logger import log_multiple_data
+from code.db import get_serialized_dict, save_serialized_dict, DB_NEW, DB_PATH, DB_OLD
+from code.chain import run_chain, RemoveBetweenParenthesis, RemoveSymbols, BeginsNumber, \
                                     RemoveSubstrings, CompatibleFormat, RemoveExtension, \
                                     RemoveMultiplesSpaces, RemoveSpaceBeforeExtension
 

@@ -1,5 +1,9 @@
+import os
+from pprint import pprint
 import musicbrainzngs
 from Levenshtein import distance
+
+from code.logger import log_data
 
 
 musicbrainzngs.set_useragent(app='meta_song', version= '0.0.1', contact = 'https://github.com/cesarllb/MetaSong')
@@ -68,4 +72,18 @@ async def search_album_by_song(artist: str, song: str, precision: float = 0.9) -
     if result["recording-list"]:
         album = result["recording-list"][0]["release-list"][0]["title"]
         return album
-    
+
+
+async def download_and_add_album_cover(artist: str, album: str, path: str, precision: float = 0.9):
+    musicbrainzngs.set_rate_limit(limit_or_interval=1.0, new_requests=1)
+    results = musicbrainzngs.search_releases(artist = artist + f"~{precision}", release = album + f"~{precision}", limit=1)
+    if "release-list" in results and len(results["release-list"]) > 0:
+        release_id = results["release-list"][0]["id"]; images = []
+        try:
+            images = musicbrainzngs.get_image_list(release_id)
+            if len(images) > 0:
+                image_data = musicbrainzngs.get_image(mbid= release_id, coverid = images["images"][0]['id'], size=500)
+                with open(os.path.join(path, f"{album}_cover.jpg"), "wb") as f:
+                    f.write(image_data)
+        except musicbrainzngs.musicbrainz.ResponseError as e:
+            log_data(f"An error occurred: {e}")

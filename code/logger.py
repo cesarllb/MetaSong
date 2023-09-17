@@ -15,7 +15,7 @@ def log_data(data):
 
     logger.addHandler(file_handler)
 
-    logger.info(data.split('\\n'))
+    logger.info(data)
 
     
 def log_multiple_data(*args):

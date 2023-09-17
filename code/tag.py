@@ -2,32 +2,73 @@ import os
 import asyncio
 import music_tag
 import itertools
-from logger import log_data
+from code.logger import log_data
 from Levenshtein import distance
-from api import search_songs, search_artist, search_album
-from db import get_serialized_dict, update_serialized_dict, update_db, DB_NEW, DB_PATH
+from mutagen.mp3 import HeaderNotFoundError
+from code.logger import log_data
+from code.api import search_songs, search_artist, search_album, download_and_add_album_cover
+from abc import ABC, abstractmethod
+from code.db import get_serialized_dict, update_serialized_dict, update_db, DB_NEW, DB_PATH
 
-class SongTag:
+class ISongTag(ABC):
     TITLE, ARTIST, ALBUM = 1, 2, 3
+    
+    @abstractmethod
+    def __init__(self, path):
+        ...
+        
+    @abstractmethod
+    def set_tag(self, type: int, value: str, save: bool = False) -> None:
+        ...
 
+class MusicTag(ISongTag):
+    
     def __init__(self, path):
         self.path = path
         self.name = path.split('/')[-1]
-        self.song_tag = music_tag.load_file(self.path)
+        try:
+            self.song_tag = music_tag.load_file(self.path)
+        except HeaderNotFoundError:
+            log_data(f"Error: {self.name} is not compatible with mutagen.")
+            self.song_tag = None
     
     def set_tag(self, type: int, value: str, save: bool = False) -> None:
-        if type == SongTag.TITLE:
-            self.song_tag['title'] = value
-        elif type == SongTag.ARTIST:
-            self.song_tag['artist'] = value
-        elif type == SongTag.ALBUM:
-            self.song_tag['album'] = value
-        elif isinstance(type, str):
-            self.song_tag[type] = value
-        if save:
-            self.song_tag.save()
+        if self.song_tag:
+            if type == ISongTag.TITLE:
+                self.song_tag['title'] = value
+            elif type == ISongTag.ARTIST:
+                self.song_tag['artist'] = value
+            elif type == ISongTag.ALBUM:
+                self.song_tag['album'] = value
+            elif isinstance(type, str):
+                self.song_tag[type] = value
+            if save:
+                self.song_tag.save()
     def save(self):
-        self.song_tag.save()
+        if self.song_tag:
+            self.song_tag.save()
+        
+# class TagLib(ISongTag):
+    
+#     def __init__(self, path):
+#         self.path = path
+#         self.name = path.split('/')[-1]
+    
+#     def set_tag(self, type: int, value: str, save: bool = False) -> None:
+#         if os.path.exists(self.path):
+#             try:
+#                 with taglib.File(self.path, save_on_exit=save) as song_tag:
+#                     if type == ISongTag.TITLE:
+#                         song_tag['TITLE'] = value
+#                     elif type == ISongTag.ARTIST:
+#                         song_tag['ARTIST'] = value
+#                     elif type == ISongTag.ALBUM:
+#                         song_tag['ALBUM'] = value
+#                     elif isinstance(type, str):
+#                         song_tag[type] = value
+#             except Exception:
+#                 log_data(f"Error: {self.name} is not compatible with TagLib.")
+
 
 class AlbumTag:
 
@@ -39,10 +80,10 @@ class AlbumTag:
         self.songs_path = [s for s in songs_path if os.path.isfile(s)]
         self.songs_tag = self._get_album_song_tag_list()
 
-    def _get_album_song_tag_list(self) -> list[SongTag]:
+    def _get_album_song_tag_list(self) -> list[ISongTag]:
         list_of_songs_tag = []
         for path in self.songs_path:
-            list_of_songs_tag.append(SongTag(path))
+            list_of_songs_tag.append(MusicTag(path))
         return list_of_songs_tag
 
     def set_songs_tag_by_type(self, type: int, 
@@ -104,14 +145,14 @@ class ArtistTag:
     def apply_by_dict(self):
         for album in self.albums_tag:
             #Set tags to all song
-            self.set_tags_to_songs(SongTag.ALBUM, album)
-            self.set_tags_to_songs(SongTag.ARTIST, album)
-            self.set_tags_to_songs(SongTag.TITLE, album)
+            self.set_tags_to_songs(ISongTag.ALBUM, album)
+            self.set_tags_to_songs(ISongTag.ARTIST, album)
+            self.set_tags_to_songs(ISongTag.TITLE, album)
 
     def set_tags_to_songs(self, type: int, album_tag: AlbumTag):
         album_len = len(album_tag.songs_tag)
         if type in (1, 2, 3):
-            if type == SongTag.TITLE:
+            if type == ISongTag.TITLE:
                 values = [album_tag.songs_tag[i].name for i in range(album_len)]
                 album_tag.set_songs_tag_by_type(type, values)
             else:
@@ -126,16 +167,23 @@ class ArtistTag:
             asyncio.gather( self.update_albums_name(), self.update_songs_name() )
             await self.update_unknown_album()
         else:
-            asyncio.gather( self.update_albums_name(), self.update_songs_name() )
+            asyncio.gather( self.update_albums_name(), self.update_songs_name(), )
         await self.update_artist_name()
 
+    async def download_covers(self):
+        if not self.NO_ALBUM:
+            for album_path in self.album_song_dict_path:
+                album_name: str = album_path.split('/')[-1]
+                if not album_name.split('.')[-1].lower() in ['jpg', 'png']:
+                    await download_and_add_album_cover(self.name, album_name, album_path)
+                
     async def update_unknown_album(self):
         if self.NO_ALBUM:
             album_tag = self.albums_tag[0]
             api_artist = await search_artist(self.name)
             if api_artist:
                 album_tag.artist_name = api_artist
-                album_tag.set_songs_tag_by_type(SongTag.ARTIST, save= True)
+                album_tag.set_songs_tag_by_type(ISongTag.ARTIST, save= True)
             
     async def update_albums_name(self, threshold: int = 6):
         album_song_dict: dict = get_serialized_dict(DB_NEW, self.name)
@@ -151,7 +199,7 @@ class ArtistTag:
                     album_tag = self.get_album_tag(album)
                     for s in album_song_dict[album]:
                         if album_tag and distance(s, api_album) < threshold:
-                            album_tag.set_song_tag_by_name(SongTag.ALBUM, song_name = s, value = api_album, save = True)
+                            album_tag.set_song_tag_by_name(ISongTag.ALBUM, song_name = s, value = api_album, save = True)
                             log_data(album_tag.album_name + ' -> ' + api_album)
                     if album_tag:
                         new_album_song_dict[api_album] = album_song_dict[album]
@@ -174,7 +222,7 @@ class ArtistTag:
                 count = 0
                 for s, api_s in zip(album_song_dict[a], api_songs):
                     if api_s and album_tag and distance(s, api_s) < threshold:
-                        album_tag.set_song_tag_by_name(SongTag.TITLE, song_name = s, value = api_s, save = True)
+                        album_tag.set_song_tag_by_name(ISongTag.TITLE, song_name = s, value = api_s, save = True)
                         count += 1; log_data(s + ' -> ' + api_s)
                 if len(api_songs) == count:
                     new_album_song_dict[a] = api_songs
@@ -205,11 +253,13 @@ class ArtistTag:
             for tag in self.albums_tag:
                 log_data(tag.artist_name + ' -> ' + api_artist)
                 tag.artist_name = api_artist
-                tag.set_songs_tag_by_type(SongTag.ARTIST, save= True)
+                tag.set_songs_tag_by_type(ISongTag.ARTIST, save= True)
                     
-async def apply_tags(names: list[str], api: bool = False):
+async def apply_tags(names: list[str], api: bool = False, covers: bool = False):
     for name in names:
         a_tag = ArtistTag(name)
         a_tag.apply_by_dict()
         if api:
             await a_tag.update_all_by_api()
+        if covers:
+            await a_tag.download_covers()
