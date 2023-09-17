@@ -1,8 +1,8 @@
 import os
 from abc import ABC, abstractmethod
-from code.files_processor import ArtistFolderProcessor, IArtistFolderProcessor
-from code.db import save_serialized_dict, update_serialized_dict
-from code.chain import RemoveBetweenParenthesis, RemoveMultiplesSpaces, RemoveSymbols, run_chain
+from files_processor import ArtistFolderProcessor, IArtistFolderProcessor
+from db import save_serialized_dict, update_serialized_dict, DB_PATH
+from chain import RemoveBetweenParenthesis, RemoveMultiplesSpaces, RemoveSymbols, run_chain
 
 class IArtistFolderEditor(ABC):
     
@@ -32,10 +32,11 @@ class ArtistFolderEditor:
         self.albums_path: list = self._get_album_path()
         self.songs_path: list = self._get_songs_path()
         self.album_song_dict_path: dict = self._get_album_song_dict_path()
-        save_serialized_dict(db.DB_PATH, self.name, self.album_song_dict_path)
+        save_serialized_dict(DB_PATH, self.name, self.album_song_dict_path)
         self.unsolved_song_path: list = []
 
     def apply_artist_name(self, path: str):
+        print(type(path))
         self.new_name = run_chain(path.split('/')[-1], chain = (RemoveBetweenParenthesis, RemoveSymbols, RemoveMultiplesSpaces))
         new_path = os.path.join( os.path.dirname(path) , self.new_name)
         os.rename(path, new_path)# Rename the artist dir name
@@ -119,7 +120,7 @@ class ArtistFolderEditor:
         except NotADirectoryError as e:
             print('The dir: ', e.filename, ' error. \n')
         
-        update_serialized_dict(db.DB_PATH, self.name, new_album_song_dict_path)
+        update_serialized_dict(DB_PATH, self.name, new_album_song_dict_path)
         self.album_song_dict_path = new_album_song_dict_path
             
         self.unsolved_song_path = self._get_unsolved_song_path()

@@ -1,12 +1,11 @@
 import os
-import db
 import asyncio
 import music_tag
 import itertools
 from logger import log_data
 from Levenshtein import distance
 from api import search_songs, search_artist, search_album
-from code.db import get_serialized_dict, update_serialized_dict, update_db
+from db import get_serialized_dict, update_serialized_dict, update_db, DB_NEW, DB_PATH
 
 class SongTag:
     TITLE, ARTIST, ALBUM = 1, 2, 3
@@ -83,12 +82,12 @@ class AlbumTag:
 class ArtistTag:
     def __init__(self, name: str) -> None:
         self.name = name
-        self.album_song_dict_path = get_serialized_dict(db.DB_PATH, self.name)
+        self.album_song_dict_path = get_serialized_dict(DB_PATH, self.name)
         self.NO_ALBUM = self._is_NO_ALBUM()
         self.albums_tag = self._get_albums_tag()
 
     def _is_NO_ALBUM(self) -> bool:
-        album_dict = get_serialized_dict(db.DB_NEW, self.name)
+        album_dict = get_serialized_dict(DB_NEW, self.name)
         return True if list(album_dict)[0] == 'NO ALBUM' else False
     
     def get_album_tag(self, album_name: str) -> AlbumTag:
@@ -139,7 +138,7 @@ class ArtistTag:
                 album_tag.set_songs_tag_by_type(SongTag.ARTIST, save= True)
             
     async def update_albums_name(self, threshold: int = 6):
-        album_song_dict: dict = get_serialized_dict(db.DB_NEW, self.name)
+        album_song_dict: dict = get_serialized_dict(DB_NEW, self.name)
         new_album_song_dict: dict = {}
         if not self.NO_ALBUM:
             results = [None] * len(album_song_dict)
@@ -158,10 +157,10 @@ class ArtistTag:
                         new_album_song_dict[api_album] = album_song_dict[album]
             if len(list(itertools.chain(*album_song_dict.values()))) == \
                             len(list(itertools.chain(*new_album_song_dict.values()))):
-                update_serialized_dict(db.DB_NEW, self.name, new_album_song_dict)
+                update_serialized_dict(DB_NEW, self.name, new_album_song_dict)
                 
     async def update_songs_name(self, threshold: int = 6):
-        album_song_dict: dict = get_serialized_dict(db.DB_NEW, self.name)
+        album_song_dict: dict = get_serialized_dict(DB_NEW, self.name)
         new_album_song_dict: dict = {}
         if not self.NO_ALBUM:
             results = [None] * len(album_song_dict.keys())
@@ -182,7 +181,7 @@ class ArtistTag:
                     
             if len(list(itertools.chain(*album_song_dict.values()))) == \
                             len(list(itertools.chain(*new_album_song_dict.values()))):
-                update_serialized_dict(db.DB_NEW, self.name, new_album_song_dict)
+                update_serialized_dict(DB_NEW, self.name, new_album_song_dict)
             
     def _best_api_songs(self, api_songs: list[str], old_songs: list[str], threshold: int = 6):
         new_api_songs = []

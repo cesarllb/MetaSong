@@ -1,9 +1,8 @@
 import os
 import shutil
 import asyncio
-from code.tag import apply_tags
-from code.db import get_serialized_dict
-from code.files_editor import initialize_editors, apply_changes_to_files, get_unsolved, ArtistFolderEditor
+from tag import apply_tags
+from files_editor import initialize_editors, apply_changes_to_files, get_unsolved, ArtistFolderEditor
 
 root = '/run/media/cesarlinares/08050A6608050A66/Música/test'
 

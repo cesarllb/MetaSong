@@ -1,10 +1,9 @@
 import os
-import db
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from logger import log_multiple_data
-from code.db import get_serialized_dict, save_serialized_dict
-from code.chain import run_chain, RemoveBetweenParenthesis, RemoveSymbols, BeginsNumber, \
+from db import get_serialized_dict, save_serialized_dict, DB_NEW, DB_PATH, DB_OLD
+from chain import run_chain, RemoveBetweenParenthesis, RemoveSymbols, BeginsNumber, \
                                     RemoveSubstrings, CompatibleFormat, RemoveExtension, \
                                     RemoveMultiplesSpaces, RemoveSpaceBeforeExtension
 
@@ -38,7 +37,7 @@ class ArtistFolderProcessor(IArtistFolderProcessor):
         
 
     def _get_album_song_dict(self, load_db: bool = True):
-        album_song_dict = get_serialized_dict(db.DB_OLD, self.name)
+        album_song_dict = get_serialized_dict(DB_OLD, self.name)
         if album_song_dict and load_db:
             return album_song_dict
         no_album = self.check_no_album(self.root)
@@ -50,7 +49,7 @@ class ArtistFolderProcessor(IArtistFolderProcessor):
             elif os.path.isfile(elem_path) and no_album:
                 album_song_dict[self.NO_ALBUM] = list([f for f in os.listdir(self.root) if os.path.isfile(os.path.join(self.root, f)) 
                                                         and run_chain(f, chain=[CompatibleFormat])])
-        save_serialized_dict(db.DB_OLD, self.name, album_song_dict)
+        save_serialized_dict(DB_OLD, self.name, album_song_dict)
         return album_song_dict
     
     def check_no_album(self, root: str) -> bool:
@@ -65,7 +64,7 @@ class ArtistFolderProcessor(IArtistFolderProcessor):
 
     def _get_new_album_song_dict(self, load_db: bool = True):
         '''If it have subfolders/albums it not analyze files in the root/artist path'''
-        new_album_song_dict = get_serialized_dict(db.DB_NEW, self.name)
+        new_album_song_dict = get_serialized_dict(DB_NEW, self.name)
         if new_album_song_dict and load_db:
             return new_album_song_dict
         
@@ -80,7 +79,7 @@ class ArtistFolderProcessor(IArtistFolderProcessor):
             new_album_song_dict[new_album_name] = list_songs
             
         # new_album_song_dict = self.remove_duplicates(new_album_song_dict)
-        save_serialized_dict(db.DB_NEW, self.name, new_album_song_dict)
+        save_serialized_dict(DB_NEW, self.name, new_album_song_dict)
         return new_album_song_dict
 
     def remove_duplicates(self, dictionary: dict) -> dict:
