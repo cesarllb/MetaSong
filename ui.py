@@ -12,7 +12,7 @@ def init_or_add(path: str) -> MusicFolder:
     elif 'mf' in st.session_state:
         st.session_state.mf.add_new_dir_of_artist(path)
         st.session_state.list_path.append(path)
-    
+
 def apply_names():
     if 'mf' in st.session_state:
         st.session_state.mf.apply_to_files()
